@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Created on Fri Aug  7 20:28:26 2020
@@ -10,12 +11,14 @@ import numpy as np
 import sys
 import os
 import shutil
+import yaml
 
 
 def read_files() :
     
     if len(sys.argv) == 1 :
-        try    :   
+        try    :  
+            f=open('band.yaml','r')
             band_yaml = open('band.yaml', 'r').read().split('phonon:')[1]
             vesta     = open('POSCAR.vesta', 'r').read()
         except :  
@@ -24,6 +27,7 @@ def read_files() :
         
     elif len(sys.argv) == 3 :
         try    :   
+            f=open('band.yaml','r')
             band_yaml = open(sys.argv[1], 'r').read().split('phonon:')[1]
             vesta     = open(sys.argv[2], 'r').read()
         except :  
@@ -36,12 +40,12 @@ def read_files() :
         print('Try with' '\n' 'python3 extract_vectors_phonopy.py band.yaml'
               ' POSCAR.vesta')
         sys.exit(0)
+    lattice = yaml.load(f,Loader = yaml.FullLoader).get('lattice')
 
-    return(band_yaml, vesta)    
+    return(lattice, band_yaml, vesta)    
     
     
 def extract(band_yaml) :
-    
     q_point = band_yaml.split('q-position:')[1:]
     q_position = []
     for i in range(len(q_point)) :
@@ -96,8 +100,6 @@ def write_VESTA(vesta, displacements, qpoint_band, q_position, scale ):
     
     path = 'VESTA_FILES'
     if os.path.isdir(path): 
-        shutil.rmtree(path)
-        os.mkdir(path)
         print('VESTA_FILES ALREADY PRESENT')
         print('OUTPUT VESTA FILES ARE SAVED IN VESTA_FILES')
     else : 
@@ -126,7 +128,7 @@ def write_VESTA(vesta, displacements, qpoint_band, q_position, scale ):
                 towrite += '%10.5f' %(displacements[qpoint][band][atom][0] * int(scale))
                 towrite += '%10.5f' %(displacements[qpoint][band][atom][1] * int(scale))
                 towrite += '%10.5f' %(displacements[qpoint][band][atom][2] * int(scale))
-                towrite += '\n'
+                towrite += ' 0\n'
                 towrite += '%5d' %(atom + 1)  +  ' 0 0 0 0\n  0 0 0 0 0\n'
             
             towrite += '0 0 0 0 0\n' 
@@ -152,10 +154,16 @@ def write_VESTA(vesta, displacements, qpoint_band, q_position, scale ):
 #                       MAIN CODE
 #------------------------------------------------------
     
-band_yaml, vesta = read_files()
+lattice, band_yaml, vesta = read_files()
 displacements, qpoint_band, q_position = extract(band_yaml)
 band_yaml = 0    # Cleaning memory
 scale = 5
+for i, q in enumerate(displacements):
+  for j, mode in enumerate(q):
+    for k, atom in enumerate(mode):
+      print(atom)
+      displacements[i,j,k] = np.dot(atom,np.linalg.inv(lattice))
+      print(atom,1)
 write_VESTA(vesta, displacements, qpoint_band, q_position, scale)
 #-----------------------------------------------------------
 # Rough
